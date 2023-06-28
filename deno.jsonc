@@ -15,7 +15,7 @@
     "install": "deno compile --unstable -Ao $TEA_PREFIX/tea.xyz/v$VERSION/bin/tea src/app.ts && scripts/repair.ts tea.xyz"
   },
   "lint": {
-    "include": ["src/", "scripts/"]
+    "include": ["src/"]
   },
   "tea": {
     "dependencies": {
