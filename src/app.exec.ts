@@ -1,10 +1,10 @@
-import { useConfig, useRun, useLogger, RunError, Verbosity, ExitError } from "hooks"
+import { useConfig, useLogger, RunError, Verbosity, ExitError } from "hooks"
 import { Installation, Path, utils, TeaError } from "tea"
 import { basename } from "deno/path/mod.ts"
 import { isNumber } from "is-what"
-import execle from "./utils/execle.ts"
+import execv from "./utils/execv.ts"
 
-export default async function(cmd: string[], env: Record<string, string>) {
+export default function(cmd: string[], env: Record<string, string>) {
   const { TEA_FORK_BOMB_PROTECTOR } = useConfig().env
   const { red, teal } = useLogger()
 
@@ -14,7 +14,7 @@ export default async function(cmd: string[], env: Record<string, string>) {
   if (nobomb > 20) throw new Error("FORK BOMB KILL SWITCH ACTIVATED")
 
   try {
-    await useRun({cmd, env})
+    execv({cmd, env})
   } catch (err) {
     const debug = useConfig().modifiers.verbosity >= Verbosity.debug
     const arg0 = cmd?.[0]
@@ -41,7 +41,7 @@ export default async function(cmd: string[], env: Record<string, string>) {
   }
 }
 
-export async function repl(installations: Installation[], env: Record<string, string>) {
+export function repl(installations: Installation[], env: Record<string, string>) {
   const { SHELL } = useConfig().env
   const { gray } = useLogger()
   const pkgs_str = () => installations.map(({pkg}) => gray(utils.pkg.str(pkg))).join(", ")
@@ -82,5 +82,5 @@ export async function repl(installations: Installation[], env: Record<string, st
       )
   }
 
-  execle(cmd[0], cmd, env)
+  execv({cmd, env})
 }
