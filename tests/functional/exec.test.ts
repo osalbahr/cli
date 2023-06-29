@@ -13,7 +13,7 @@ Deno.test("exec", { sanitizeResources: false, sanitizeOps: false }, async () => 
     useRunSpy.restore()
   }
 
-  const foo = [useRunSpy.calls[0].args[0], ...useRunSpy.calls[0].args[1].args!]
+  const foo = [useRunSpy.calls[0].args[0], ...useRunSpy.calls[0].args[0].cmd]
   assertEquals(foo, ["node", "--version"], "should have run node --version")
 })
 
@@ -27,7 +27,7 @@ Deno.test("forward env to exec", { sanitizeResources: false, sanitizeOps: false 
     useRunSpy.restore()
   }
 
-  assertEquals(useRunSpy.calls[0].args[1].env?.["TEA_PREFIX"], TEA_PREFIX.string)
+  assertEquals(useRunSpy.calls[0].args[0].env?.["TEA_PREFIX"], TEA_PREFIX.string)
 })
 
 Deno.test("exec run errors", { sanitizeResources: false, sanitizeOps: false }, async test => {

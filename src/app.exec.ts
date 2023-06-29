@@ -1,8 +1,7 @@
-import { useConfig, useLogger, RunError, Verbosity, ExitError } from "hooks"
-import { Installation, Path, utils, TeaError } from "tea"
+import { useConfig, useLogger, ExitError, useRun } from "hooks"
+import { Installation, Path, utils } from "tea"
 import { basename } from "deno/path/mod.ts"
 import { isNumber } from "is-what"
-import execv from "./utils/execv.ts"
 
 export default function(cmd: string[], env: Record<string, string>) {
   const { TEA_FORK_BOMB_PROTECTOR } = useConfig().env
@@ -14,16 +13,11 @@ export default function(cmd: string[], env: Record<string, string>) {
   if (nobomb > 20) throw new Error("FORK BOMB KILL SWITCH ACTIVATED")
 
   try {
-    execv({cmd, env})
+    useRun({cmd, env})
   } catch (err) {
-    const debug = useConfig().modifiers.verbosity >= Verbosity.debug
     const arg0 = cmd?.[0]
 
-    if (err instanceof TeaError) {
-      throw err
-    } else if (debug) {
-      console.error(err)
-    } else if (err instanceof Deno.errors.NotFound) {
+    if (err instanceof Deno.errors.NotFound) {
       console.error("tea: command not found:", teal(arg0))
       throw new ExitError(127)  // 127 is used for command not found
     } else if (err instanceof Deno.errors.PermissionDenied) {
@@ -32,7 +26,7 @@ export default function(cmd: string[], env: Record<string, string>) {
       } else {
         console.error("tea: permission denied:", teal(arg0))
       }
-    } else if (err instanceof RunError == false) {
+    } else {
       const decapitalize = ([first, ...rest]: string) => first.toLowerCase() + rest.join("")
       console.error(`${red("error")}:`, decapitalize(err.message))
     }
@@ -82,5 +76,5 @@ export function repl(installations: Installation[], env: Record<string, string>)
       )
   }
 
-  execv({cmd, env})
+  useRun({cmd, env})
 }

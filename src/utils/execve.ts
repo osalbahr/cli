@@ -6,22 +6,44 @@ export default function({cmd: argv, env}: {cmd: string[], env: Record<string, st
 
   const libc = Deno.dlopen(
     filename, {
-      "execv": { parameters: ["pointer", "pointer"], result: "i32" },
-    } as const
+      execve: {
+        parameters: ["pointer", "pointer", "pointer"],
+        result: "i32"
+      },
+      errno: {
+        type: "i32"
+      }
+    }
   )
 
-  // execle is the only variant that takes env and is variadic
-  // deno ffi cannot call variadic functions
-  for (const key in env) {
-    Deno.env.set(key, env[key])
-  }
-
-  find_in_PATH(argv, Deno.env.get('PATH'))
+  find_in_PATH(argv, env.PATH)
 
   const command = Deno.UnsafePointer.of(new TextEncoder().encode(`${argv[0]}\0`))
-  const _result = libc.symbols.execv(command, arr_to_c(argv))
+  const env_ = Object.entries(env).map(([key, value]) => `${key}=${value}\0`)
 
-  throw new Error("execle failed")
+  libc.symbols.execve(command, arr_to_c(argv), arr_to_c(env_))
+
+  switch (libc.symbols.errno) {
+    case 2:  //ENOENT:
+      // yes: strange behavior from execve here indeed
+      if (new Path(argv[0]).exists()) {
+        throw new Deno.errors.PermissionDenied()
+      } else {
+        throw new Deno.errors.NotFound()
+      }
+    case 13:
+      throw new Deno.errors.PermissionDenied()
+    case 7:  //E2BIG:
+    case 14: //EFAULT:
+    case 5:  //EIO:
+    case 62: //ELOOP:
+    case 63: //ENAMETOOLONG:
+    case 8:  //ENOEXEC:
+    case 12: //ENOMEM:
+    case 20: //ENOTDIR:
+    case 26: //ETXTBSY:
+      throw new Error(`execve failed (${libc.symbols.errno})`)
+  }
 }
 
 function arr_to_c(arr: string[]): Deno.PointerValue {
@@ -39,6 +61,16 @@ function arr_to_c(arr: string[]): Deno.PointerValue {
 }
 
 function find_in_PATH(cmd: string[], PATH?: string) {
+  console.error(cmd[0])
+
+  if (cmd[0].startsWith("/")) {
+    return
+  }
+  if (cmd[0].includes("/")) {
+    cmd[0] = Path.cwd().join(cmd[0]).string
+    return
+  }
+
   PATH ??= "/usr/bin:/bin"  // see manpage for execvp(3)
 
   for (const part of PATH.split(':')) {
